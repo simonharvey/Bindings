@@ -1,0 +1,3 @@
+[submodule "External/cecil"]
+	path = External/cecil
+	url = git@github.com:jbevain/cecil.git
