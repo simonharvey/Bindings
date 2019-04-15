@@ -13,6 +13,8 @@ public class Bindings
 	{
 		Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.Full);
 		var ass = (AssemblyDefinitionAsset)Selection.activeObject;
+		//EditorUtility.SetDirty(ass);
+		//AssetDatabase.Refresh();
 		var bindableModule = ModuleDefinition.ReadModule($"Library/ScriptAssemblies/Bindings.dll");
 		var baseBindable = bindableModule.ImportReference(typeof(BindableBase));
 
@@ -41,7 +43,7 @@ public class Bindings
 				foreach (var prop in bindableFields)
 				{
 					//Debug.Log(prop);
-					//prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
+					prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
 
 					var setterName = $"set_{prop.Name}";
 					var setter = t.Methods.Single(m => m.Name == setterName);

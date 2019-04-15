@@ -10,7 +10,7 @@ public class Foo
 
 	//public event Action<string> OnStringChange;
 
-	public event Action<object> OnChangeTest;
+	//public event Action<object> OnChangeTest;
 }
 
 public class Bar
