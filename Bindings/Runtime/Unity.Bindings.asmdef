@@ -1,8 +1,6 @@
 {
-    "name": "Bindings.Editor",
-    "references": [
-        "Bindings"
-    ],
+    "name": "Unity.Bindings",
+    "references": [],
     "optionalUnityReferences": [],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -10,5 +8,6 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": []
 }

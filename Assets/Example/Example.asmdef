@@ -1,7 +1,7 @@
 {
     "name": "Example",
     "references": [
-        "Bindings"
+        "Unity.Bindings"
     ],
     "optionalUnityReferences": [],
     "includePlatforms": [],
@@ -10,5 +10,6 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": []
 }
