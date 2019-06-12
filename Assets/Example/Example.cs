@@ -22,14 +22,14 @@ public class Foo : BindableBase
 	[Bind("BarValue.FloatValue")]
 	public void OnBarPropChanged()
 	{
-
+		Debug.Log($"OnBarPropChanged()");
 	}
 }
 
 public class Bar
 {
-	/*[Bindable]
-	public float FloatValue { get; set; }*/
+	[Bindable]
+	public float FloatValue { get; set; }
 
 	public override string ToString()
 	{
@@ -51,10 +51,11 @@ public class Example
 		var ctx = new BindingContext();
 		var foo = new Foo();
 		ctx.Register(foo);
-		foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
+		//foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
 
 		foo.IntValue = 666;
 		foo.BarValue = new Bar();
+		foo.BarValue.FloatValue = 12345;
 	}
 
 	private static void Foo_OnBindableFieldChange(object arg1, string arg2)
