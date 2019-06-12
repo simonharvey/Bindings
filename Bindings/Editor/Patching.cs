@@ -98,7 +98,6 @@ public class Patching
 		var bindableModule = ModuleDefinition.ReadModule(typeof(BindableAttribute).Assembly.Location); 
 		var baseBindable = bindableModule.ImportReference(typeof(BindableBase));
 		
-		
 		var modDef = assDef.Modules[0];
 		foreach (var t in modDef.Types)
 		{

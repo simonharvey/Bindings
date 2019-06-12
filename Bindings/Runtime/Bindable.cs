@@ -19,21 +19,40 @@ public class Bind : Attribute
 	}
 }
 
+/*public class BindingNode
+{
+	public string Name;
+}*/
+
+// bindings propagate up!
 public class BindableBase
 { 
 	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
+	
+	private Dictionary<string, BindableBase> _bindings = new Dictionary<string, BindableBase>();
 
-	public event Action<object, string> OnBindableFieldChange;
-	private Dictionary<string, object> _bindings = new Dictionary<string, object>();
+	public event OnChangeDelegate OnBindingChange;
+	//public event Action<object, string> OnBindableFieldChange;
+
+	public BindableBase()
+	{
+		//OnBindingChange +
+	}
 
 	protected void _NotifyChange(string name)
 	{
-		OnBindableFieldChange?.Invoke(this, name);
+		//OnBindableFieldChange?.Invoke(this, name);
 	}
 
 	protected void _NotifyChangeValues(string name, object oldValue, object newValue)
 	{
 		Debug.Log($"_NotifyChangeValues({name}, {oldValue}, {newValue})");
+		OnBindingChange?.Invoke(this, name, oldValue, newValue);
+
+		if (oldValue is BindableBase bo)
+		{
+			var bn = (BindableBase)newValue;
+		}
 	}
 }
 
@@ -58,13 +77,24 @@ public class BindingContext
 			{
 				//Debug.Log($"Bind: {a.Uri}");
 				var crumbs = a.Uri.Split('.');
-				obj.OnBindableFieldChange += Obj_OnBindableFieldChange;
+				//obj.OnBindableFieldChange += Obj_OnBindableFieldChange;
+				obj.OnBindingChange += Obj_OnBindingChange;
 			}
 		}
 	}
 
-	private void Obj_OnBindableFieldChange(object arg1, string arg2)
+	public void Bind(string uri, Action fn)
+	{
+
+	}
+
+	private void Obj_OnBindingChange(BindableBase target, string prop, object oldValue, object objectNewValue)
+	{
+		
+	}
+
+	/*private void Obj_OnBindableFieldChange(object arg1, string arg2)
 	{
 		Debug.Log($"Obj_OnBindableFieldChange({arg1}, {arg2})");
-	}
+	}*/
 }
