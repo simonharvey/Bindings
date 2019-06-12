@@ -1,6 +1,8 @@
 ﻿using System;
 using UnityEngine;
 
+[assembly: Bindable]
+
 public class Foo : BindableBase
 {
 	[Bindable]
@@ -44,6 +46,7 @@ public class Example
 		ctx.Register(foo);
 		foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
 
+		foo.IntValue = 666;
 		foo.BarValue = new Bar();
 	}
 

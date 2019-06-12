@@ -39,22 +39,24 @@ public class BindingContext
 
 	}
 
-	public void Register(object obj)
+	public void Register(BindableBase obj)
 	{
 		var type = obj.GetType();
-		Debug.Log(type);
 		
 		foreach (var m in type.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
 		{
 			var bindAttrs = m.GetCustomAttributes<Bind>(true);
 			foreach (var a in bindAttrs)
 			{
-				Debug.Log($"Bind: {a.Uri}");
+				//Debug.Log($"Bind: {a.Uri}");
 				var crumbs = a.Uri.Split('.');
-				//crumbs[0];
+				obj.OnBindableFieldChange += Obj_OnBindableFieldChange;
 			}
 		}
+	}
 
-		//type.GetMembers().Select(m => )
+	private void Obj_OnBindableFieldChange(object arg1, string arg2)
+	{
+		Debug.Log($"Obj_OnBindableFieldChange({arg1}, {arg2})");
 	}
 }
