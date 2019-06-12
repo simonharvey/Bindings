@@ -21,11 +21,19 @@ public class Bind : Attribute
 
 public class BindableBase
 {
+	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
+
 	public event Action<object, string> OnBindableFieldChange;
+	private Dictionary<string, object> _bindings = new Dictionary<string, object>();
 
 	protected void _NotifyChange(string name)
 	{
 		OnBindableFieldChange?.Invoke(this, name);
+	}
+
+	protected void _NotifyChangeValues(string name, object oldValue, object newValue)
+	{
+		Debug.Log($"_NotifyChangeValues({name}, {oldValue}, {newValue})");
 	}
 }
 

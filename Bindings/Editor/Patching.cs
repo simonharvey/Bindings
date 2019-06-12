@@ -91,6 +91,8 @@ public class Patching
 		//Debug.Log("AssemblyReloadEvents_afterAssemblyReload");
 	}
 
+	// https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes.stloc_0?view=netframework-4.8
+	// https://github.com/Fody/PropertyChanging/blob/master/PropertyChanging.Fody/EqualityCheckWeaver.cs
 	public static void PatchAssembly(AssemblyDefinition assDef)
 	{
 		var bindableModule = ModuleDefinition.ReadModule(typeof(BindableAttribute).Assembly.Location); 
@@ -112,18 +114,45 @@ public class Patching
 			{
 				prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
 
+				var reqBoxing = prop.PropertyType.IsPrimitive;
+				
 				var setterName = $"set_{prop.Name}";
+				var getterName = $"get_{prop.Name}";
 				var setter = t.Methods.Single(m => m.Name == setterName);
+				var getter = t.Methods.Single(m => m.Name == getterName);
 				var il = setter.Body.GetILProcessor();
-				var rr = bindableModule.ImportReference(typeof(BindableBase).GetMethod("_NotifyChange", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
+				var notifyRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_NotifyChange", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
+				var notifyValuesRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_NotifyChangeValues", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
+
+				var boxOp = prop.PropertyType.IsPrimitive ? il.Create(OpCodes.Box, modDef.ImportReference(prop.PropertyType)) : il.Create(OpCodes.Nop);
 
 				var ldstr = il.Create(OpCodes.Ldstr, prop.Name);
-				var call = il.Create(OpCodes.Call, modDef.ImportReference(rr));
+
+				// remove the ret instruction to patch the end of the method
 				il.Remove(setter.Body.Instructions[setter.Body.Instructions.Count() - 1]);
+
+				// old
+				/*il.Append(il.Create(OpCodes.Ldarg_0));
+				il.Append(ldstr);
+				il.Append(il.Create(OpCodes.Call, notifyRef));*/
+
+				//il.Body.Instructions[0]
+
+				// new
 
 				il.Append(il.Create(OpCodes.Ldarg_0));
 				il.Append(ldstr);
-				il.Append(call);
+				il.Append(il.Create(OpCodes.Ldarg_1));
+				il.Append(boxOp);
+				il.Append(il.Create(OpCodes.Ldarg_1));
+				il.Append(boxOp);
+
+				//il.Append(ldstr);
+
+				//il.Append(il.Create(OpCodes.Call, getter));
+				//il.Append(il.Create(OpCodes.Stloc_0));
+				il.Append(il.Create(OpCodes.Call, notifyValuesRef));
+				
 				il.Append(il.Create(OpCodes.Ret));
 			}
 		}

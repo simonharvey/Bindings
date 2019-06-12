@@ -11,10 +11,12 @@ public class Foo : BindableBase
 	[Bindable]
 	public Bar BarValue { get; set; }
 
+	public int Unbindable { get; set; }
+
 	[Bind("IntValue")]
 	void OnIntValueChange(int oldValue, int newValue)
 	{
-
+		Debug.Log($"OnIntValueChange({oldValue}, {newValue})");
 	}
 
 	[Bind("BarValue.FloatValue")]
@@ -26,8 +28,8 @@ public class Foo : BindableBase
 
 public class Bar
 { 
-	[Bindable]
-	public float FloatValue { get; set; }
+	/*[Bindable]
+	public float FloatValue { get; set; }*/
 }
 
 public class Baz : BindableBase
@@ -52,6 +54,6 @@ public class Example
 
 	private static void Foo_OnBindableFieldChange(object arg1, string arg2)
 	{
-		Debug.Log($"Changed: {arg1} {arg2}"); 
+		//Debug.Log($"Changed: {arg1} {arg2}"); 
 	}
 }
