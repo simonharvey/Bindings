@@ -20,7 +20,7 @@ public class Bind : Attribute
 }
 
 public class BindableBase
-{
+{ 
 	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
 
 	public event Action<object, string> OnBindableFieldChange;

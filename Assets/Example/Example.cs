@@ -27,9 +27,14 @@ public class Foo : BindableBase
 }
 
 public class Bar
-{ 
+{
 	/*[Bindable]
 	public float FloatValue { get; set; }*/
+
+	public override string ToString()
+	{
+		return "[BAR]";
+	}
 }
 
 public class Baz : BindableBase

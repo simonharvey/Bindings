@@ -138,11 +138,20 @@ public class Patching
 
 				//il.Body.Instructions[0]
 
-				// new
+				var tempVar = new VariableDefinition(prop.PropertyType);
+				setter.Body.Variables.Add(tempVar);
 
+				// todo: this is probably flimsy, the stack might get fucked, idk
+
+				// new
+				var entryOp = il.Body.Instructions[0];
+
+				il.InsertBefore(entryOp, il.Create(OpCodes.Ldarg_0));
+				il.InsertBefore(entryOp, il.Create(OpCodes.Call, getter));
+				il.InsertBefore(entryOp, il.Create(OpCodes.Stloc_0));
 				il.Append(il.Create(OpCodes.Ldarg_0));
 				il.Append(ldstr);
-				il.Append(il.Create(OpCodes.Ldarg_1));
+				il.Append(il.Create(OpCodes.Ldloc_0));
 				il.Append(boxOp);
 				il.Append(il.Create(OpCodes.Ldarg_1));
 				il.Append(boxOp);
@@ -174,4 +183,9 @@ public class Patching
 	{
 		return Selection.activeObject is AssemblyDefinitionAsset;
 	}
+}
+
+public static class Extensions
+{
+	//public static void InsertBefore(this ILProcessor processor, )
 }
