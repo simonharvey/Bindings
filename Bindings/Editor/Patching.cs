@@ -130,13 +130,6 @@ public class Patching
 				// remove the ret instruction to patch the end of the method
 				il.Remove(setter.Body.Instructions[setter.Body.Instructions.Count() - 1]);
 
-				// old
-				/*il.Append(il.Create(OpCodes.Ldarg_0));
-				il.Append(ldstr);
-				il.Append(il.Create(OpCodes.Call, notifyRef));*/
-
-				//il.Body.Instructions[0]
-
 				var tempVar = new VariableDefinition(prop.PropertyType);
 				setter.Body.Variables.Add(tempVar);
 
@@ -148,19 +141,15 @@ public class Patching
 				il.InsertBefore(entryOp, il.Create(OpCodes.Ldarg_0));
 				il.InsertBefore(entryOp, il.Create(OpCodes.Call, getter));
 				il.InsertBefore(entryOp, il.Create(OpCodes.Stloc_0));
+
 				il.Append(il.Create(OpCodes.Ldarg_0));
 				il.Append(ldstr);
 				il.Append(il.Create(OpCodes.Ldloc_0));
 				il.Append(boxOp);
 				il.Append(il.Create(OpCodes.Ldarg_1));
 				il.Append(boxOp);
-
-				//il.Append(ldstr);
-
-				//il.Append(il.Create(OpCodes.Call, getter));
-				//il.Append(il.Create(OpCodes.Stloc_0));
 				il.Append(il.Create(OpCodes.Call, notifyValuesRef));
-				
+
 				il.Append(il.Create(OpCodes.Ret));
 			}
 		}
@@ -182,9 +171,4 @@ public class Patching
 	{
 		return Selection.activeObject is AssemblyDefinitionAsset;
 	}
-}
-
-public static class Extensions
-{
-	//public static void InsertBefore(this ILProcessor processor, )
 }
