@@ -50,7 +50,6 @@ public class Patching
 			var otherAttrs = assDef.CustomAttributes.Where((a) => a.AttributeType.Name != nameof(BindableAttribute)).ToList();
 			if (otherAttrs.Count != assDef.CustomAttributes.Count)
 			{
-				Debug.Log($"Patch Bindable Assembly: {assPath}");
 				assDef.CustomAttributes.Clear();
 				foreach (var attr in otherAttrs)
 				{
@@ -80,6 +79,8 @@ public class Patching
 		{
 			File.Delete(patched.Original);
 			File.Move(patched.Patched, patched.Original);
+
+			Debug.Log($"Patched Bindable Assembly: {patched.Original}");
 		}
 
 		_patched.Clear();
