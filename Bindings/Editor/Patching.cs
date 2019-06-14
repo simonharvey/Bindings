@@ -99,15 +99,24 @@ public class Patching
 		var baseBindable = bindableModule.ImportReference(typeof(BindableBase));
 		
 		var modDef = assDef.Modules[0];
-		foreach (var t in modDef.Types)
+		foreach (var typeDef in modDef.Types)
 		{
-			var tt = t;
-			var bindableFields = t.Properties.Where(f => f.CustomAttributes.Any(a => a.AttributeType.Name == nameof(BindableAttribute))).ToArray();
+			var bindableFields = typeDef.Properties.Where(f => f.CustomAttributes.Any(a => a.AttributeType.Name == nameof(BindableAttribute))).ToArray();
 
-			if (bindableFields.Count() > 0 && t.BaseType.FullName == "System.Object")
+			if (bindableFields.Count() == 0)
 			{
-				t.BaseType = modDef.ImportReference(baseBindable.GetElementType());
+				continue;
 			}
+
+			if (typeDef.BaseType.FullName == "System.Object")
+			{
+				typeDef.BaseType = modDef.ImportReference(baseBindable.GetElementType());
+			}
+
+			int fieldIdx = 0;
+			string[] fieldNames = new string[bindableFields.Length];
+
+			ILProcessor il;
 
 			foreach (var prop in bindableFields)
 			{
@@ -117,10 +126,9 @@ public class Patching
 				
 				var setterName = $"set_{prop.Name}";
 				var getterName = $"get_{prop.Name}";
-				var setter = t.Methods.Single(m => m.Name == setterName);
-				var getter = t.Methods.Single(m => m.Name == getterName);
-				var il = setter.Body.GetILProcessor();
-				var notifyRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_NotifyChange", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
+				var setter = typeDef.Methods.Single(m => m.Name == setterName);
+				var getter = typeDef.Methods.Single(m => m.Name == getterName);
+				il = setter.Body.GetILProcessor();
 				var notifyValuesRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_NotifyChangeValues", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
 
 				var boxOp = prop.PropertyType.IsPrimitive ? il.Create(OpCodes.Box, modDef.ImportReference(prop.PropertyType)) : il.Create(OpCodes.Nop);
@@ -143,7 +151,8 @@ public class Patching
 				il.InsertBefore(entryOp, il.Create(OpCodes.Stloc_0));
 
 				il.Append(il.Create(OpCodes.Ldarg_0));
-				il.Append(ldstr);
+				il.Append(il.Create(OpCodes.Ldc_I4, fieldIdx));
+				//il.Append(ldstr);
 				il.Append(il.Create(OpCodes.Ldloc_0));
 				il.Append(boxOp);
 				il.Append(il.Create(OpCodes.Ldarg_1));
@@ -151,7 +160,74 @@ public class Patching
 				il.Append(il.Create(OpCodes.Call, notifyValuesRef));
 
 				il.Append(il.Create(OpCodes.Ret));
+
+				fieldNames[fieldIdx] = prop.Name;
+
+				++fieldIdx;
 			}
+
+			// create field idx lookup methods
+			// https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes.switch?view=netframework-4.8
+
+			var hashFn = typeof(BindableBase).GetMethod("Hash", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+			var hashRef = modDef.ImportReference(hashFn);
+
+			// name to index
+
+			var nameToIdx = new MethodDefinition("_NameToIdx", MethodAttributes.Public, modDef.TypeSystem.Int32);
+			nameToIdx.Parameters.Add(new ParameterDefinition("fieldName", ParameterAttributes.In, modDef.TypeSystem.String));
+
+			// https://stackoverflow.com/questions/36020729/if-else-if-injection-with-mono-cecil
+			Instruction[] switches = new Instruction[fieldIdx];
+			int[] hashes = new int[fieldIdx];
+			il = nameToIdx.Body.GetILProcessor();
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
+				switches[i] = il.Create(OpCodes.Ldc_I4, hashes[i]);
+			}
+
+			il.Append(il.Create(OpCodes.Ldarg_1));
+			il.Append(il.Create(OpCodes.Call, hashRef));
+			il.Append(il.Create(OpCodes.Switch, switches));
+
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				il.Append(switches[i]);
+				il.Append(il.Create(OpCodes.Ldc_I4, hashes[i]));
+				il.Append(il.Create(OpCodes.Ret));
+			}
+
+			il.Append(il.Create(OpCodes.Ldc_I4, 666));
+			il.Append(il.Create(OpCodes.Ret));
+			typeDef.Methods.Add(nameToIdx);
+
+			// index to name
+
+			var idxToName = new MethodDefinition("_IdxToName", MethodAttributes.Public, modDef.TypeSystem.String);
+			idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
+
+			switches = new Instruction[fieldIdx];
+			il = idxToName.Body.GetILProcessor();
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				switches[i] = il.Create(OpCodes.Ldc_I4, i);
+			}
+
+			il.Append(il.Create(OpCodes.Ldarg_1));
+			//il.Append(il.Create(OpCodes.Call, hashRef));
+			il.Append(il.Create(OpCodes.Switch, switches));
+
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				il.Append(switches[i]);
+				il.Append(il.Create(OpCodes.Ldstr, fieldNames[i]));
+				il.Append(il.Create(OpCodes.Ret));
+			}
+
+			//il.Append(il.Create(OpCodes.Ldc_I4, 666));
+			il.Append(il.Create(OpCodes.Ret));
+			typeDef.Methods.Add(idxToName);
 		}
 	}
 

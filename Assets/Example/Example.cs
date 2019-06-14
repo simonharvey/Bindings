@@ -24,6 +24,25 @@ public class Foo : BindableBase
 	{
 		Debug.Log($"OnBarPropChanged()");
 	}
+
+	public int ExampleIfs(string n)
+	{
+		if (n == "hello")
+			return 1;
+		if (n == "world")
+			return 2;
+		return 0;
+	}
+
+	public int ExampleSwitch(string n)
+	{
+		switch (n)
+		{
+			case "hello": return 1;
+			case "world": return 2;
+			default: return 0;
+		}
+	}
 }
 
 public class Bar
@@ -48,10 +67,15 @@ public class Example
 	[RuntimeInitializeOnLoadMethod]
 	public static void Garbage()
 	{
-		var ctx = new BindingContext();
+		//var ctx = new BindingContext();
 		var foo = new Foo();
-		ctx.Register(foo);
+		//ctx.Register(foo);
 		//foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
+
+		foo.Bind("BarValue.FloatValue", (v) =>
+		{
+			Debug.Log($"Changed: {v}");
+		});
 
 		foo.IntValue = 666;
 		foo.BarValue = new Bar();

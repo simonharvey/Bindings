@@ -24,6 +24,19 @@ public class Bind : Attribute
 	public string Name;
 }*/
 
+//  
+
+public struct Binding
+{
+	public BindableBase Object;
+	public int Slot;
+}
+
+public class Slot
+{
+	public HashSet<Binding> Bindings = new HashSet<Binding>();
+}
+
 // bindings propagate up!
 public class BindableBase
 { 
@@ -32,27 +45,31 @@ public class BindableBase
 	private Dictionary<string, BindableBase> _bindings = new Dictionary<string, BindableBase>();
 
 	public event OnChangeDelegate OnBindingChange;
-	//public event Action<object, string> OnBindableFieldChange;
-
+	
 	public BindableBase()
 	{
-		//OnBindingChange +
+
 	}
 
-	protected void _NotifyChange(string name)
+	protected void _NotifyChangeValues(int fieldIdx, object oldValue, object newValue)
 	{
-		//OnBindableFieldChange?.Invoke(this, name);
-	}
-
-	protected void _NotifyChangeValues(string name, object oldValue, object newValue)
-	{
-		Debug.Log($"_NotifyChangeValues({name}, {oldValue}, {newValue})");
-		OnBindingChange?.Invoke(this, name, oldValue, newValue);
+		Debug.Log($"{this}._NotifyChangeValues({fieldIdx}, {oldValue}, {newValue})");
+		OnBindingChange?.Invoke(this, $"field{fieldIdx}", oldValue, newValue);
 
 		if (oldValue is BindableBase bo)
 		{
 			var bn = (BindableBase)newValue;
 		}
+	}
+
+	public void Bind(string path, Action<object> callback)
+	{
+
+	}
+
+	public static int Hash(string str)
+	{
+		return str.GetHashCode();
 	}
 }
 
