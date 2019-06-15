@@ -38,7 +38,7 @@ public class Slot
 }
 
 // bindings propagate up!
-public class BindableBase
+public abstract class BindableBase
 { 
 	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
 	
@@ -71,6 +71,9 @@ public class BindableBase
 	{
 		return str.GetHashCode();
 	}
+
+	public virtual int GetFieldIndex(string name) { return -1; }
+	public virtual string GetFieldName(int idx) { return null; }
 }
 
 public class BindingContext

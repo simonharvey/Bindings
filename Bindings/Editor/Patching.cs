@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditorInternal;
 using UnityEngine;
-
+using static Mono.Cecil.Cil.OpCodes;
 
 public class Patching
 {
@@ -66,6 +66,12 @@ public class Patching
 					Original = assPath,
 					Patched = outputPath,
 				});
+
+				Debug.Log($"Patching: {assPath}");
+			}
+			else
+			{
+				Debug.Log($"Not bindable : {assPath}");
 			}
 		}
 	}
@@ -80,7 +86,7 @@ public class Patching
 			File.Delete(patched.Original);
 			File.Move(patched.Patched, patched.Original);
 
-			Debug.Log($"Patched Bindable Assembly: {patched.Original}");
+			//Debug.Log($"Patched Bindable Assembly: {patched.Original}");
 		}
 
 		_patched.Clear();
@@ -174,7 +180,7 @@ public class Patching
 
 			// name to index
 
-			var nameToIdx = new MethodDefinition("_NameToIdx", MethodAttributes.Public, modDef.TypeSystem.Int32);
+			var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
 			nameToIdx.Parameters.Add(new ParameterDefinition("fieldName", ParameterAttributes.In, modDef.TypeSystem.String));
 
 			// https://stackoverflow.com/questions/36020729/if-else-if-injection-with-mono-cecil
@@ -204,8 +210,10 @@ public class Patching
 
 			// index to name
 
-			var idxToName = new MethodDefinition("_IdxToName", MethodAttributes.Public, modDef.TypeSystem.String);
+			/*var idxToName = new MethodDefinition("GetFieldName", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.String);
 			idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
+			var nameVar = new VariableDefinition(modDef.TypeSystem.String);
+			idxToName.Body.Variables.Add(nameVar);
 
 			switches = new Instruction[fieldIdx];
 			il = idxToName.Body.GetILProcessor();
@@ -222,10 +230,62 @@ public class Patching
 			{
 				il.Append(switches[i]);
 				il.Append(il.Create(OpCodes.Ldstr, fieldNames[i]));
-				il.Append(il.Create(OpCodes.Ret));
+				il.Append(il.Create(OpCodes.Stloc, nameVar));
+				//il.Append(il.Create(OpCodes.Ret));
+				il.Append(il.Create(OpCodes.Break));
 			}
 
 			//il.Append(il.Create(OpCodes.Ldc_I4, 666));
+			il.Append(il.Create(OpCodes.Ldloc, nameVar));
+			il.Append(il.Create(OpCodes.Ret));
+			typeDef.Methods.Add(idxToName);*/
+
+			var idxToName = new MethodDefinition("GetFieldName", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.String);
+			idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
+			var V_0 = new VariableDefinition(modDef.TypeSystem.Int32);
+			var V_1 = new VariableDefinition(modDef.TypeSystem.String);
+
+			const int CASE_SIZE = 8; // disgusting
+
+			idxToName.Body.Variables.Add(V_0);
+			idxToName.Body.Variables.Add(V_1);
+
+			var outLabel = il.Create(Ldloc_1);
+			var defaultLabel = il.Create(Ldnull);
+
+			switches = new Instruction[fieldIdx];
+			il = idxToName.Body.GetILProcessor();
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				switches[i] = il.Create(OpCodes.Ldstr, fieldNames[i]);
+			}
+
+			il.Append(il.Create(OpCodes.Ldarg_1));
+			il.Append(il.Create(OpCodes.Stloc_0)); // V_0
+			il.Append(il.Create(Ldloc_0));
+			il.Append(il.Create(Ldc_I4_1));
+			il.Append(il.Create(Sub));
+			// lcd.i4.1
+			// sub
+			il.Append(il.Create(OpCodes.Switch, switches));
+			il.Emit(Br_S, defaultLabel);
+			//default jump
+
+			for (int i = 0; i < fieldIdx; ++i)
+			{
+				il.Append(switches[i]);
+				il.Append(il.Create(OpCodes.Stloc, V_1));
+				//il.Append(il.Create(OpCodes.Ret));
+				il.Append(il.Create(OpCodes.Br_S, outLabel));
+			}
+
+			// default
+			il.Append(defaultLabel);
+			il.Emit(Stloc_1);
+			il.Emit(Br_S, outLabel);
+
+			//il.Append(il.Create(OpCodes.Ldc_I4, 666));
+			il.Append(outLabel);
 			il.Append(il.Create(OpCodes.Ret));
 			typeDef.Methods.Add(idxToName);
 		}

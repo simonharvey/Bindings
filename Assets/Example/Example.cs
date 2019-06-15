@@ -25,7 +25,7 @@ public class Foo : BindableBase
 		Debug.Log($"OnBarPropChanged()");
 	}
 
-	public int ExampleIfs(string n)
+	/*public int ExampleIfs(string n)
 	{
 		if (n == "hello")
 			return 1;
@@ -38,9 +38,31 @@ public class Foo : BindableBase
 	{
 		switch (n)
 		{
-			case "hello": return 1;
-			case "world": return 2;
+			case "a": return 1;
+			case "b": return 2;
+			case "c": return 3;
+			case "d": return 4;
+			case "e": return 5;
+			case "f": return 6;
+			case "g": return 7;
+			case "h": return 8;
 			default: return 0;
+		}
+	}*/
+
+	public string ExampleSwitch2(int n)
+	{
+		switch (n)
+		{
+			case 1: return "a";
+			case 2: return "b";
+			case 3: return "c";
+			case 4: return "d";
+			case 5: return "e";
+			case 6: return "f";
+			case 7: return "g";
+			case 8: return "h";
+			default: return "caca";
 		}
 	}
 }
@@ -64,23 +86,23 @@ public class Baz : BindableBase
 
 public class Example
 {
-	[RuntimeInitializeOnLoadMethod]
-	public static void Garbage()
-	{
-		//var ctx = new BindingContext();
-		var foo = new Foo();
-		//ctx.Register(foo);
-		//foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
-
-		foo.Bind("BarValue.FloatValue", (v) =>
-		{
-			Debug.Log($"Changed: {v}");
-		});
-
-		foo.IntValue = 666;
-		foo.BarValue = new Bar();
-		foo.BarValue.FloatValue = 12345;
-	}
+	//[RuntimeInitializeOnLoadMethod]
+	//public static void Garbage()
+	//{
+	//	//var ctx = new BindingContext();
+	//	var foo = new Foo();
+	//	//ctx.Register(foo);
+	//	//foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
+	//
+	//	/*((BindableBase)foo).Bind("BarValue.FloatValue", (v) =>
+	//	{
+	//		Debug.Log($"Changed: {v}");
+	//	});*/
+	//
+	//	foo.IntValue = 666;
+	//	foo.BarValue = new Bar();
+	//	foo.BarValue.FloatValue = 12345;
+	//}
 
 	private static void Foo_OnBindableFieldChange(object arg1, string arg2)
 	{
