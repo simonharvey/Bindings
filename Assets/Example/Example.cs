@@ -25,32 +25,56 @@ public class Foo : BindableBase
 		Debug.Log($"OnBarPropChanged()");
 	}
 
-	/*public int ExampleIfs(string n)
+	public int ExampleIfs(string n)
 	{
-		if (n == "hello")
+		var hash = Hash(n);
+		if (hash == 123)
+			return 10001;
+		if (hash == 456)
+			return 20001;
+		return 0;
+	}
+
+	public int ExampleIfsLong(string n)
+	{
+		var hash = Hash(n);
+		if (hash == 123)
 			return 1;
-		if (n == "world")
+		if (hash == 456)
+			return 2;
+		if (hash == 125)
+			return 1;
+		if (hash == 524)
+			return 2;
+		if (hash == 678)
+			return 1;
+		if (hash == 175)
+			return 2;
+		if (hash == 985)
+			return 1;
+		if (hash == 484)
 			return 2;
 		return 0;
 	}
 
 	public int ExampleSwitch(string n)
 	{
-		switch (n)
+		var hash = BindableBase.Hash(n);
+		switch (hash)
 		{
-			case "a": return 1;
-			case "b": return 2;
-			case "c": return 3;
-			case "d": return 4;
-			case "e": return 5;
-			case "f": return 6;
-			case "g": return 7;
-			case "h": return 8;
+			case 7 : return 1;
+			case 10: return 2;
+			case 13: return 3;
+			case 16: return 4;
+			case 19: return 5;
+			case 22: return 6;
+			case 25: return 7;
+			case 28: return 8;
 			default: return 0;
 		}
-	}*/
+	}
 
-	public string ExampleSwitch2(int n)
+	/*public string ExampleSwitch2(int n)
 	{
 		switch (n)
 		{
@@ -64,7 +88,7 @@ public class Foo : BindableBase
 			case 8: return "h";
 			default: return "caca";
 		}
-	}
+	}*/
 }
 
 public class Bar

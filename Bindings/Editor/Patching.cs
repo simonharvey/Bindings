@@ -97,6 +97,7 @@ public class Patching
 		//Debug.Log("AssemblyReloadEvents_afterAssemblyReload");
 	}
 
+	// https://www.codeproject.com/Articles/671259/Reweaving-IL-code-with-Mono-Cecil
 	// https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes.stloc_0?view=netframework-4.8
 	// https://github.com/Fody/PropertyChanging/blob/master/PropertyChanging.Fody/EqualityCheckWeaver.cs
 	public static void PatchAssembly(AssemblyDefinition assDef)
@@ -129,7 +130,7 @@ public class Patching
 				prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
 
 				var reqBoxing = prop.PropertyType.IsPrimitive;
-				
+
 				var setterName = $"set_{prop.Name}";
 				var getterName = $"get_{prop.Name}";
 				var setter = typeDef.Methods.Single(m => m.Name == setterName);
@@ -179,115 +180,134 @@ public class Patching
 			var hashRef = modDef.ImportReference(hashFn);
 
 			// name to index
+			/*{
+				var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
+				nameToIdx.Parameters.Add(new ParameterDefinition("fieldName", ParameterAttributes.In, modDef.TypeSystem.String));
 
-			var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
-			nameToIdx.Parameters.Add(new ParameterDefinition("fieldName", ParameterAttributes.In, modDef.TypeSystem.String));
+				var V_0 = new VariableDefinition(modDef.TypeSystem.String);
+				var V_1 = new VariableDefinition(modDef.TypeSystem.Int32);
 
-			// https://stackoverflow.com/questions/36020729/if-else-if-injection-with-mono-cecil
-			Instruction[] switches = new Instruction[fieldIdx];
-			int[] hashes = new int[fieldIdx];
-			il = nameToIdx.Body.GetILProcessor();
-			for (int i = 0; i < fieldIdx; ++i)
-			{
-				hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
-				switches[i] = il.Create(OpCodes.Ldc_I4, hashes[i]);
-			}
+				// https://stackoverflow.com/questions/36020729/if-else-if-injection-with-mono-cecil
+				Instruction[] switches = new Instruction[fieldIdx];
+				int[] hashes = new int[fieldIdx];
+				il = nameToIdx.Body.GetILProcessor();
 
-			il.Append(il.Create(OpCodes.Ldarg_1));
-			il.Append(il.Create(OpCodes.Call, hashRef));
-			il.Append(il.Create(OpCodes.Switch, switches));
 
-			for (int i = 0; i < fieldIdx; ++i)
-			{
-				il.Append(switches[i]);
-				il.Append(il.Create(OpCodes.Ldc_I4, hashes[i]));
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
+					switches[i] = il.Create(Ldc_I4, hashes[i]);
+				}
+
+				il.Emit(Ldarg_1);
+				il.Emit(Call, hashRef);
+				il.Emit(Switch, switches);
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					il.Append(switches[i]);
+					il.Append(il.Create(OpCodes.Ldc_I4, hashes[i]));
+					il.Append(il.Create(OpCodes.Ret));
+				}
+
+				il.Append(il.Create(OpCodes.Ldc_I4, 666));
 				il.Append(il.Create(OpCodes.Ret));
-			}
+				typeDef.Methods.Add(nameToIdx);
+			}*/
 
-			il.Append(il.Create(OpCodes.Ldc_I4, 666));
-			il.Append(il.Create(OpCodes.Ret));
-			typeDef.Methods.Add(nameToIdx);
-
-			// index to name
-
-			/*var idxToName = new MethodDefinition("GetFieldName", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.String);
-			idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
-			var nameVar = new VariableDefinition(modDef.TypeSystem.String);
-			idxToName.Body.Variables.Add(nameVar);
-
-			switches = new Instruction[fieldIdx];
-			il = idxToName.Body.GetILProcessor();
-			for (int i = 0; i < fieldIdx; ++i)
 			{
-				switches[i] = il.Create(OpCodes.Ldc_I4, i);
+				int[] hashes = new int[fieldIdx];
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
+				}
+
+				var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
+				nameToIdx.Parameters.Add(new ParameterDefinition("name", ParameterAttributes.In, modDef.TypeSystem.String));
+				var vHash = new VariableDefinition(modDef.TypeSystem.Int32);
+				nameToIdx.Body.Variables.Add(vHash);
+				var vResult = new VariableDefinition(modDef.TypeSystem.Int32);
+				nameToIdx.Body.Variables.Add(vResult);
+
+				il = nameToIdx.Body.GetILProcessor();
+
+				var labels = Enumerable.Range(0, fieldIdx + 1).Select(i => il.Create(Ldloc_0)).ToArray();
+				var outLabel = labels[fieldIdx] = il.Create(Ldloc, vResult);
+
+				il.Emit(Ldc_I4, -1);
+				il.Emit(Stloc, vResult);
+
+				il.Emit(Ldarg_1);
+				il.Emit(Call, hashRef);
+				il.Emit(Stloc_0);
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					//il.Emit(Ldloc_0);
+					il.Append(labels[i]);
+					il.Emit(Ldc_I4, hashes[i]);
+					il.Emit(Ceq);
+					il.Emit(Brfalse, labels[i+1]);
+					il.Emit(Ldc_I4, i);
+					il.Emit(Stloc, vResult);
+					il.Emit(Br_S, outLabel);
+				}
+
+				il.Emit(Ldc_I4, -1);
+				il.Emit(Stloc, vResult);
+				il.Append(outLabel);
+				il.Emit(Ret);
+				
+				typeDef.Methods.Add(nameToIdx);
 			}
 
-			il.Append(il.Create(OpCodes.Ldarg_1));
-			//il.Append(il.Create(OpCodes.Call, hashRef));
-			il.Append(il.Create(OpCodes.Switch, switches));
-
-			for (int i = 0; i < fieldIdx; ++i)
 			{
-				il.Append(switches[i]);
-				il.Append(il.Create(OpCodes.Ldstr, fieldNames[i]));
-				il.Append(il.Create(OpCodes.Stloc, nameVar));
-				//il.Append(il.Create(OpCodes.Ret));
-				il.Append(il.Create(OpCodes.Break));
+				var idxToName = new MethodDefinition("GetFieldName", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.String);
+				idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
+
+				il = idxToName.Body.GetILProcessor();
+
+				var V_0 = new VariableDefinition(modDef.TypeSystem.Int32);
+				var V_1 = new VariableDefinition(modDef.TypeSystem.String);
+
+				idxToName.Body.Variables.Add(V_0);
+				idxToName.Body.Variables.Add(V_1);
+
+				var outLabel = il.Create(Ldloc_1);
+				var defaultLabel = il.Create(Ldnull);
+
+				var switches = new Instruction[fieldIdx];
+				il = idxToName.Body.GetILProcessor();
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					switches[i] = il.Create(OpCodes.Ldstr, fieldNames[i]);
+				}
+
+				il.Emit(Ldarg_1);
+				il.Emit(Stloc_0);
+				il.Emit(Ldloc_0);
+				//il.Emit(Ldc_I4_1);
+				//il.Emit(Sub);
+				il.Emit(Switch, switches);
+				il.Emit(Br_S, defaultLabel);
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					il.Append(switches[i]);
+					il.Emit(Stloc, V_1);
+					il.Emit(Br_S, outLabel);
+				}
+
+				// default
+				il.Append(defaultLabel);
+				il.Emit(Stloc_1);
+				il.Emit(Br_S, outLabel);
+
+				il.Append(outLabel);
+				il.Emit(Ret);
+				typeDef.Methods.Add(idxToName);
 			}
-
-			//il.Append(il.Create(OpCodes.Ldc_I4, 666));
-			il.Append(il.Create(OpCodes.Ldloc, nameVar));
-			il.Append(il.Create(OpCodes.Ret));
-			typeDef.Methods.Add(idxToName);*/
-
-			var idxToName = new MethodDefinition("GetFieldName", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.String);
-			idxToName.Parameters.Add(new ParameterDefinition("idx", ParameterAttributes.In, modDef.TypeSystem.Int32));
-			var V_0 = new VariableDefinition(modDef.TypeSystem.Int32);
-			var V_1 = new VariableDefinition(modDef.TypeSystem.String);
-
-			const int CASE_SIZE = 8; // disgusting
-
-			idxToName.Body.Variables.Add(V_0);
-			idxToName.Body.Variables.Add(V_1);
-
-			var outLabel = il.Create(Ldloc_1);
-			var defaultLabel = il.Create(Ldnull);
-
-			switches = new Instruction[fieldIdx];
-			il = idxToName.Body.GetILProcessor();
-			for (int i = 0; i < fieldIdx; ++i)
-			{
-				switches[i] = il.Create(OpCodes.Ldstr, fieldNames[i]);
-			}
-
-			il.Append(il.Create(OpCodes.Ldarg_1));
-			il.Append(il.Create(OpCodes.Stloc_0)); // V_0
-			il.Append(il.Create(Ldloc_0));
-			il.Append(il.Create(Ldc_I4_1));
-			il.Append(il.Create(Sub));
-			// lcd.i4.1
-			// sub
-			il.Append(il.Create(OpCodes.Switch, switches));
-			il.Emit(Br_S, defaultLabel);
-			//default jump
-
-			for (int i = 0; i < fieldIdx; ++i)
-			{
-				il.Append(switches[i]);
-				il.Append(il.Create(OpCodes.Stloc, V_1));
-				//il.Append(il.Create(OpCodes.Ret));
-				il.Append(il.Create(OpCodes.Br_S, outLabel));
-			}
-
-			// default
-			il.Append(defaultLabel);
-			il.Emit(Stloc_1);
-			il.Emit(Br_S, outLabel);
-
-			//il.Append(il.Create(OpCodes.Ldc_I4, 666));
-			il.Append(outLabel);
-			il.Append(il.Create(OpCodes.Ret));
-			typeDef.Methods.Add(idxToName);
 		}
 	}
 

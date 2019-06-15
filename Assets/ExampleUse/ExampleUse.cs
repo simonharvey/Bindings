@@ -9,6 +9,7 @@ public class ExampleUse
 	{
 		Foo foo = new Foo();
 		Debug.Log(foo.GetFieldName(1));
+		Debug.Log(foo.GetFieldIndex(foo.GetFieldName(1)));
 		//Debug.Log(foo.GetFieldName(0));
 		//(foo as BindableBase).
 		//foo.
