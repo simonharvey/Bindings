@@ -102,9 +102,9 @@ public class Patching
 	// https://github.com/Fody/PropertyChanging/blob/master/PropertyChanging.Fody/EqualityCheckWeaver.cs
 	public static void PatchAssembly(AssemblyDefinition assDef)
 	{
-		var bindableModule = ModuleDefinition.ReadModule(typeof(BindableAttribute).Assembly.Location); 
+		var bindableModule = ModuleDefinition.ReadModule(typeof(BindableAttribute).Assembly.Location);
 		var baseBindable = bindableModule.ImportReference(typeof(BindableBase));
-		
+
 		var modDef = assDef.Modules[0];
 		foreach (var typeDef in modDef.Types)
 		{
@@ -179,42 +179,6 @@ public class Patching
 			var hashFn = typeof(BindableBase).GetMethod("Hash", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
 			var hashRef = modDef.ImportReference(hashFn);
 
-			// name to index
-			/*{
-				var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
-				nameToIdx.Parameters.Add(new ParameterDefinition("fieldName", ParameterAttributes.In, modDef.TypeSystem.String));
-
-				var V_0 = new VariableDefinition(modDef.TypeSystem.String);
-				var V_1 = new VariableDefinition(modDef.TypeSystem.Int32);
-
-				// https://stackoverflow.com/questions/36020729/if-else-if-injection-with-mono-cecil
-				Instruction[] switches = new Instruction[fieldIdx];
-				int[] hashes = new int[fieldIdx];
-				il = nameToIdx.Body.GetILProcessor();
-
-
-				for (int i = 0; i < fieldIdx; ++i)
-				{
-					hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
-					switches[i] = il.Create(Ldc_I4, hashes[i]);
-				}
-
-				il.Emit(Ldarg_1);
-				il.Emit(Call, hashRef);
-				il.Emit(Switch, switches);
-
-				for (int i = 0; i < fieldIdx; ++i)
-				{
-					il.Append(switches[i]);
-					il.Append(il.Create(OpCodes.Ldc_I4, hashes[i]));
-					il.Append(il.Create(OpCodes.Ret));
-				}
-
-				il.Append(il.Create(OpCodes.Ldc_I4, 666));
-				il.Append(il.Create(OpCodes.Ret));
-				typeDef.Methods.Add(nameToIdx);
-			}*/
-
 			{
 				int[] hashes = new int[fieldIdx];
 
@@ -244,21 +208,18 @@ public class Patching
 
 				for (int i = 0; i < fieldIdx; ++i)
 				{
-					//il.Emit(Ldloc_0);
 					il.Append(labels[i]);
 					il.Emit(Ldc_I4, hashes[i]);
 					il.Emit(Ceq);
-					il.Emit(Brfalse, labels[i+1]);
+					il.Emit(Brfalse, labels[i + 1]);
 					il.Emit(Ldc_I4, i);
 					il.Emit(Stloc, vResult);
 					il.Emit(Br_S, outLabel);
 				}
 
-				il.Emit(Ldc_I4, -1);
-				il.Emit(Stloc, vResult);
 				il.Append(outLabel);
 				il.Emit(Ret);
-				
+
 				typeDef.Methods.Add(nameToIdx);
 			}
 
@@ -287,8 +248,6 @@ public class Patching
 				il.Emit(Ldarg_1);
 				il.Emit(Stloc_0);
 				il.Emit(Ldloc_0);
-				//il.Emit(Ldc_I4_1);
-				//il.Emit(Sub);
 				il.Emit(Switch, switches);
 				il.Emit(Br_S, defaultLabel);
 
@@ -309,22 +268,5 @@ public class Patching
 				typeDef.Methods.Add(idxToName);
 			}
 		}
-	}
-
-	[MenuItem("Assets/Patch Assembly")]
-	private static void PathAssemblyDef()
-	{
-		/*Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.Full);
-		var ass = (AssemblyDefinitionAsset)Selection.activeObject;
-		AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(Selection.activeObject));
-		//EditorUtility.SetDirty(ass);
-		//AssetDatabase.Refresh();
-		PatchAssembly($"Library/ScriptAssemblies/{ass.name}.dll");*/
-	}
-
-	[MenuItem("Assets/Patch Assembly", true)]
-	private static bool PathAssemblyValidation()
-	{
-		return Selection.activeObject is AssemblyDefinitionAsset;
 	}
 }
