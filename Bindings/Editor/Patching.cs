@@ -71,7 +71,7 @@ public class Patching
 			}
 			else
 			{
-				Debug.Log($"Not bindable : {assPath}");
+			//	Debug.Log($"Not bindable : {assPath}");
 			}
 		}
 	}
@@ -127,7 +127,7 @@ public class Patching
 
 			foreach (var prop in bindableFields)
 			{
-				prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
+				//prop.CustomAttributes.Remove(prop.CustomAttributes.Single(a => a.AttributeType.Name == nameof(BindableAttribute)));
 
 				var reqBoxing = prop.PropertyType.IsPrimitive;
 
@@ -136,7 +136,7 @@ public class Patching
 				var setter = typeDef.Methods.Single(m => m.Name == setterName);
 				var getter = typeDef.Methods.Single(m => m.Name == getterName);
 				il = setter.Body.GetILProcessor();
-				var notifyValuesRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_NotifyChangeValues", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
+				var notifyValuesRef = modDef.ImportReference(typeof(BindableBase).GetMethod("_SlotChanged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance));//.Resolve();
 
 				var boxOp = prop.PropertyType.IsPrimitive ? il.Create(OpCodes.Box, modDef.ImportReference(prop.PropertyType)) : il.Create(OpCodes.Nop);
 
@@ -153,20 +153,19 @@ public class Patching
 				// new
 				var entryOp = il.Body.Instructions[0];
 
-				il.InsertBefore(entryOp, il.Create(OpCodes.Ldarg_0));
-				il.InsertBefore(entryOp, il.Create(OpCodes.Call, getter));
-				il.InsertBefore(entryOp, il.Create(OpCodes.Stloc_0));
+				il.InsertBefore(entryOp, il.Create(Ldarg_0));
+				il.InsertBefore(entryOp, il.Create(Call, getter));
+				il.InsertBefore(entryOp, il.Create(Stloc_0));
 
-				il.Append(il.Create(OpCodes.Ldarg_0));
-				il.Append(il.Create(OpCodes.Ldc_I4, fieldIdx));
-				//il.Append(ldstr);
-				il.Append(il.Create(OpCodes.Ldloc_0));
+				il.Emit(Ldarg_0);
+				il.Emit(Ldc_I4, fieldIdx);
+				il.Emit(Ldloc_0);
 				il.Append(boxOp);
-				il.Append(il.Create(OpCodes.Ldarg_1));
+				il.Emit(Ldarg_1);
 				il.Append(boxOp);
-				il.Append(il.Create(OpCodes.Call, notifyValuesRef));
+				il.Emit(Call, notifyValuesRef);
 
-				il.Append(il.Create(OpCodes.Ret));
+				il.Emit(Ret);
 
 				fieldNames[fieldIdx] = prop.Name;
 
@@ -178,6 +177,50 @@ public class Patching
 
 			var hashFn = typeof(BindableBase).GetMethod("Hash", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
 			var hashRef = modDef.ImportReference(hashFn);
+
+			{
+				int[] hashes = new int[fieldIdx];
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					hashes[i] = (int)hashFn.Invoke(null, new object[] { fieldNames[i] });
+				}
+
+				var nameToIdx = new MethodDefinition("GetFieldIndex", MethodAttributes.Public | MethodAttributes.Virtual, modDef.TypeSystem.Int32);
+				nameToIdx.Parameters.Add(new ParameterDefinition("hash", ParameterAttributes.In, modDef.TypeSystem.Int32));
+				var vHash = new VariableDefinition(modDef.TypeSystem.Int32);
+				nameToIdx.Body.Variables.Add(vHash);
+				var vResult = new VariableDefinition(modDef.TypeSystem.Int32);
+				nameToIdx.Body.Variables.Add(vResult);
+
+				il = nameToIdx.Body.GetILProcessor();
+
+				var labels = Enumerable.Range(0, fieldIdx + 1).Select(i => il.Create(Ldarg_1)).ToArray();
+				var outLabel = labels[fieldIdx] = il.Create(Ldloc, vResult);
+
+				il.Emit(Ldc_I4, -1);
+				il.Emit(Stloc, vResult);
+
+				//il.Emit(Ldarg_1);
+				//il.Emit(Call, hashRef);
+				//il.Emit(Stloc_0);
+
+				for (int i = 0; i < fieldIdx; ++i)
+				{
+					il.Append(labels[i]);
+					il.Emit(Ldc_I4, hashes[i]);
+					il.Emit(Ceq);
+					il.Emit(Brfalse, labels[i + 1]);
+					il.Emit(Ldc_I4, i);
+					il.Emit(Stloc, vResult);
+					il.Emit(Br_S, outLabel);
+				}
+
+				il.Append(outLabel);
+				il.Emit(Ret);
+
+				typeDef.Methods.Add(nameToIdx);
+			}
 
 			{
 				int[] hashes = new int[fieldIdx];

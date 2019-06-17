@@ -8,6 +8,7 @@
     "api"
   ],
   "dependencies": {
+	"com.unity.collections": "0.0.9-preview.20",
     "nuget.mono-cecil": "0.1.6-preview"
   }
 }

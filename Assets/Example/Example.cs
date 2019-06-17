@@ -13,7 +13,7 @@ public class Foo : BindableBase
 
 	public int Unbindable { get; set; }
 
-	[Bind("IntValue")]
+	/*[Bind("IntValue")]
 	void OnIntValueChange(int oldValue, int newValue)
 	{
 		Debug.Log($"OnIntValueChange({oldValue}, {newValue})");
@@ -23,7 +23,7 @@ public class Foo : BindableBase
 	public void OnBarPropChanged()
 	{
 		Debug.Log($"OnBarPropChanged()");
-	}
+	}*/
 }
 
 public class Bar
