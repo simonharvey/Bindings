@@ -60,9 +60,18 @@ public class EventElement
 
 internal class BindingNode
 {
+	public BindableBase Object;
+	public int NameHash;
+	//public BindableBase.BindingChangedDelegate Callback;
+
+	public void SetObject(object value)
+	{
+
+	}
+
 	public BindingNode Parent;
 	public BindingNode FirstChild;
-	public BindingNode PrevSibling, NextSibling;
+	public BindingNode PrevSibling, NextSibling;	
 
 	public void Remove()
 	{
@@ -165,6 +174,12 @@ internal class BindingData
 	public HashSet<Binding> Bindings = new HashSet<Binding>();
 }*/
 
+/*internal class BindingNod
+{
+	p
+}*/
+
+// Binding -> linked list of names
 // maybe keep a flag if the bindable object is actually watched by some binding
 // bindings propagate up!
 public abstract class BindableBase
@@ -190,7 +205,9 @@ public abstract class BindableBase
 
 	public BindableBase()
 	{
-		_bindingNodes = new BindingNode[FieldCount];
+		//_bindingNodes = new BindingNode[FieldCount];
+		// todo: these dont compile to their procedural equivalents.... damn
+		_bindingNodes = Enumerable.Range(0, FieldCount).Select(i => new BindingNode()).ToArray();
 	}
 
 	~BindableBase()
@@ -206,33 +223,48 @@ public abstract class BindableBase
 	// this is called when one of our fields changes.
 	protected void _SlotChanged(int fieldIdx, object oldValue, object newValue)
 	{
-		//if (BindingEnabled)
-		{
-			//Debug.Log($"{this}._NotifyChangeValues({fieldIdx}, {oldValue}, {newValue})");
-			var binding = BindingData;
-			foreach (var b in binding.Bindings)
-			{
-				// if leaf, dispatch
-				if (b.IsLeaf)
-				{
-					b.Callback(oldValue, newValue);
-				}
+		_bindingNodes[fieldIdx].SetObject(newValue);
 
-				// if branch, rewire. update towards leafs
-				else
-				{
-					//var node = _bindingNodes[fieldIdx];
-				}
-			}
-			/*foreach (var i in binding.Slots[fieldIdx])
-			{
-				i.Object._NotifyChangeValues(i.Slot, oldValue, newValue);
-				if (oldValue is BindableBase bo)
-				{
-					var bn = (BindableBase)newValue;
-				}
-			}*/
+		////if (BindingEnabled)
+		//{
+		//	//Debug.Log($"{this}._NotifyChangeValues({fieldIdx}, {oldValue}, {newValue})");
+		//	var binding = BindingData;
+		//	foreach (var b in binding.Bindings)
+		//	{
+		//		// if leaf, dispatch
+		//		if (b.IsLeaf)
+		//		{
+		//			b.Callback(oldValue, newValue);
+		//		}
+		//
+		//		// if branch, rewire. update towards leafs
+		//		else
+		//		{
+		//			var node = _bindingNodes[fieldIdx];
+		//		}
+		//	}
+		//	/*foreach (var i in binding.Slots[fieldIdx])
+		//	{
+		//		i.Object._NotifyChangeValues(i.Slot, oldValue, newValue);
+		//		if (oldValue is BindableBase bo)
+		//		{
+		//			var bn = (BindableBase)newValue;
+		//		}
+		//	}*/
+		//}
+	}
+
+	public int[] GetPath(string path)
+	{
+		var crumbs = path.Split('.');//.Select(f => Hash(f)).ToArray();
+		int[] indices = new int[crumbs.Count()];
+		var type = GetType();
+		for (var i=0; i<indices.Length; ++i)
+		{
+			var f = type.GetRuntimeProperty(crumbs[i]);
+			type = f.PropertyType;
 		}
+		return null;
 	}
 
 	public void Bind(string path, BindingChangedDelegate callback)
@@ -242,6 +274,11 @@ public abstract class BindableBase
 
 		var b = this.BindingData;
 		var node = _bindingNodes[GetFieldIndex(crumbs[0])];
+
+		for (int i=0; i<crumbs.Length; ++i)
+		{
+
+		}
 		
 		//var binding = new BindingData.Binding();
 		//binding.Path = new NativeArray<int>(crumbs, Allocator.Persistent); ;
@@ -262,6 +299,12 @@ public abstract class BindableBase
 			var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
 			return bindables.Count();
 		}
+	}
+	public virtual Type GetFieldType(int idx)
+	{
+		var fields = GetType().GetRuntimeProperties();
+		var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
+		return bindables.ElementAt(idx).PropertyType;
 	}
 	public virtual int GetFieldIndex(string name) { return -1; }
 	public virtual string GetFieldName(int idx) { return null; }
