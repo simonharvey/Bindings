@@ -26,7 +26,7 @@ public class Foo : BindableBase
 	}*/
 }
 
-public class Bar
+public class Bar : BindableBase
 {
 	[Bindable]
 	public float FloatValue { get; set; }

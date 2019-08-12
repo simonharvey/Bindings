@@ -20,49 +20,13 @@ public class Bind : Attribute
 	}
 }
 
-/*public class BindingNode
-{
-	public int TargetSlot;
-	public BindableBase Object;
-}*/
-
-//  
-
-public delegate void EventDelegate(int kEvent);
-
-public class EventElement
-{
-	protected event EventDelegate eventdelegate;
-
-	public void Dispatch(int kEvent)
-	{
-		if (eventdelegate != null)
-		{
-			eventdelegate(kEvent);
-		}
-	}
-
-	public static EventElement operator +(EventElement kElement, EventDelegate kDelegate)
-	{
-		kElement.eventdelegate += kDelegate;
-		return kElement;
-	}
-
-	public static EventElement operator -(EventElement kElement, EventDelegate kDelegate)
-	{
-		kElement.eventdelegate -= kDelegate;
-		return kElement;
-	}
-}
-
-
 //
 
 internal class BindingNode
 {
-	public BindableBase Object;
 	public int NameHash;
-	//public BindableBase.BindingChangedDelegate Callback;
+	public BindableBase Object;
+	public BindingNode Next;
 
 	public void SetObject(object value)
 	{
@@ -113,8 +77,21 @@ internal class BindingNode
 		}
 
 		node.Parent = this;
-		//var c = FirstChild;
+	}
+}
 
+public class Binding : IDisposable
+{
+	BindingNode _root;
+
+	internal Binding(BindingNode root)
+	{
+		_root = root;
+	}
+
+	public void Dispose()
+	{
+		throw new NotImplementedException();
 	}
 }
 
@@ -169,15 +146,6 @@ internal class BindingData
 	}
 }
 
-/*public class Slot
-{
-	public HashSet<Binding> Bindings = new HashSet<Binding>();
-}*/
-
-/*internal class BindingNod
-{
-	p
-}*/
 
 // Binding -> linked list of names
 // maybe keep a flag if the bindable object is actually watched by some binding
@@ -186,75 +154,43 @@ public abstract class BindableBase
 { 
 	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
 	public delegate void BindingChangedDelegate(object oldValue, object newValue);
-	
-	//public event OnChangeDelegate OnBindingChange;
 
-	private BindingData _bindingData;
-	private bool BindingEnabled => _bindingData != null;
-	internal BindingData BindingData
-	{
-		get
-		{
-			if (_bindingData == null)
-				_bindingData = new BindingData(this);
-			return _bindingData;
-		}
-	}
+	//public event OnChangeDelegate OnBindingChange;
+	public Bindings.BindingData _binding;
+
 
 	private BindingNode[] _bindingNodes;
 
 	public BindableBase()
 	{
-		//_bindingNodes = new BindingNode[FieldCount];
 		// todo: these dont compile to their procedural equivalents.... damn
+		Debug.Log($"BindableBase {this}");
 		_bindingNodes = Enumerable.Range(0, FieldCount).Select(i => new BindingNode()).ToArray();
 	}
 
 	~BindableBase()
 	{
-		Debug.Log("Destructor called");
-	}
-
-	private void BubbleChange(int fieldIdx, object oldValue, object newValue)
-	{
-
+		Debug.Log($"Destructor called {this}");
 	}
 
 	// this is called when one of our fields changes.
 	protected void _SlotChanged(int fieldIdx, object oldValue, object newValue)
 	{
-		_bindingNodes[fieldIdx].SetObject(newValue);
+		try
+		{
+			var node = _bindingNodes[fieldIdx];
+			if (node != null)
+			{
 
-		////if (BindingEnabled)
-		//{
-		//	//Debug.Log($"{this}._NotifyChangeValues({fieldIdx}, {oldValue}, {newValue})");
-		//	var binding = BindingData;
-		//	foreach (var b in binding.Bindings)
-		//	{
-		//		// if leaf, dispatch
-		//		if (b.IsLeaf)
-		//		{
-		//			b.Callback(oldValue, newValue);
-		//		}
-		//
-		//		// if branch, rewire. update towards leafs
-		//		else
-		//		{
-		//			var node = _bindingNodes[fieldIdx];
-		//		}
-		//	}
-		//	/*foreach (var i in binding.Slots[fieldIdx])
-		//	{
-		//		i.Object._NotifyChangeValues(i.Slot, oldValue, newValue);
-		//		if (oldValue is BindableBase bo)
-		//		{
-		//			var bn = (BindableBase)newValue;
-		//		}
-		//	}*/
-		//}
+			}
+		}
+		catch (Exception e)
+		{
+			Debug.LogError(e);
+		}
 	}
 
-	public int[] GetPath(string path)
+	/*public int[] GetPath(string path)
 	{
 		var crumbs = path.Split('.');//.Select(f => Hash(f)).ToArray();
 		int[] indices = new int[crumbs.Count()];
@@ -265,28 +201,56 @@ public abstract class BindableBase
 			type = f.PropertyType;
 		}
 		return null;
+	}*/
+
+	public object Get(string path)
+	{
+		return null;
 	}
 
-	public void Bind(string path, BindingChangedDelegate callback)
+	public IEnumerable<int> GetCrumbs(string path)
+	{
+		return path.Split('.').Select(f => Hash(f));
+	}
+
+	private void BindRec(BindingNode parent)
+	{
+
+	}
+
+	public Binding Bind(string path, BindingChangedDelegate callback)
 	{
 		var crumbs = path.Split('.').Select(f=>Hash(f)).ToArray();
 		Debug.Log($"Bind: [{string.Join(", ", crumbs)}]");
 
-		var b = this.BindingData;
-		var node = _bindingNodes[GetFieldIndex(crumbs[0])];
+		BindableBase self = this;
+		BindingNode prev = null;// _bindingNodes[GetFieldIndex(crumbs[0])];
+		BindingNode root = null;
 
 		for (int i=0; i<crumbs.Length; ++i)
 		{
+			var node = new BindingNode();
+			node.NameHash = crumbs[i];
+			if (root == null) root = node;
 
+			if (prev != null)
+			{
+				prev.Next = node;
+			}
+
+			var field = self?.GetField(crumbs[i]);
+
+			if (field != null)
+			{
+				
+			}
+
+			prev = node;
+			self = field;
 		}
-		
-		//var binding = new BindingData.Binding();
-		//binding.Path = new NativeArray<int>(crumbs, Allocator.Persistent); ;
-		//binding.Callback = callback;
-		//b.Bindings.Add(binding);
-	}
 
-	//internal void Bind()
+		return new Binding(root);
+	}
 
 	public static int Hash(string str) => str.GetHashCode();
 
@@ -305,6 +269,18 @@ public abstract class BindableBase
 		var fields = GetType().GetRuntimeProperties();
 		var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
 		return bindables.ElementAt(idx).PropertyType;
+	}
+
+	public virtual BindableBase GetField(int hash)
+	{
+		var fields = GetType().GetRuntimeProperties();
+		var field = fields.Single(f => Hash(f.Name) == hash);
+		//var value = field.GetValue(this)
+		if (typeof(BindableBase).IsAssignableFrom(field.PropertyType))
+			return (BindableBase)field.GetValue(this);
+		else
+			Debug.Log($"Unbindable crumb: {hash}");
+		return null;
 	}
 	public virtual int GetFieldIndex(string name) { return -1; }
 	public virtual string GetFieldName(int idx) { return null; }
