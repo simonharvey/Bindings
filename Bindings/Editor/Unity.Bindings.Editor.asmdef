@@ -11,7 +11,10 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "Mono.Cecil.dll"
+        "Mono.Cecil.dll",
+        "Mono.Cecil.Rocks.dll",
+        "Mono.Cecil.Mdb.dll",
+        "Mono.Cecil.Pdb.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

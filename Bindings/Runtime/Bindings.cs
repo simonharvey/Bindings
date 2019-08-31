@@ -12,62 +12,138 @@ namespace Bindings
 	{
 		public class Node
 		{
+			Binding _owner;
 			string _prop;
-			INotifyPropertyChanged _value;
+			INotifyPropertyChanged _target;
 			//NativeSlice<int> _crumbs;
 
 			Node _next;
 
-			public INotifyPropertyChanged Value
+			public INotifyPropertyChanged Target
 			{
-				get => _value;
+				get => _target;
 				set
 				{
-					if (value != _value)
+					//Debug.Log($"Set Host {this}: {_target} -> {value}");
+					if (value != _target)
 					{
-						if (_value != null)
+						if (_target != null)
 						{
-							_value.PropertyChanged -= OnPropertyChanged;
+							_target.PropertyChanged -= OnPropertyChanged;
 						}
 
-						_value = value;
-
-						if (_value != null)
+						if (value != null)
 						{
-							_value.PropertyChanged += OnPropertyChanged;
+							//Debug.Log($"Bind Host: {value}");
+							value.PropertyChanged += OnPropertyChanged;
 						}
+
+						object oldValue = Value;
+						_target = value;
+
+						if (_next == null)
+						{
+							// leaf! lets dispatch
+							//Debug.Log("LEAF!");
+							_owner.Dispatch(oldValue, Value);
+						}
+						else
+						{
+							//Debug.Log($"Propagate {Value}");
+							_next.Target = Value as INotifyPropertyChanged;
+						}
+
 					}
 				}
 			}
 
 			private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 			{
+				//Debug.Log($"Changed {_target} -> {_prop} == {e.PropertyName}");
 				if (e.PropertyName.Equals(_prop))
 				{
-
+					if (_next != null)
+					{
+						_next.Target = Value as INotifyPropertyChanged;
+					}
+					else
+					{
+						// leaf
+						_owner.Dispatch(null, Value);
+					}
 				}
 			}
 
-			public Node(string prop, Node parent = null)
+			public Node(Binding owner, INotifyPropertyChanged target, Queue<string> crumbs)
+			{
+				_owner = owner;
+				_prop = crumbs.Dequeue();
+				if (crumbs.Count > 0)
+				{
+					_next = new Node(owner, Value as INotifyPropertyChanged, crumbs);
+				}
+				Target = target;
+			}
+
+			/*public Node(INotifyPropertyChanged value, string prop)
+			{
+				Host = value;
+				_prop = prop;
+			}*/
+
+			/*public Node(string prop, Node parent = null)
 			{
 				_prop = prop;
 				if (parent != null)
 				{
 					parent._next = this;
 				}
+			}*/
+
+			public object LeafValue
+			{
+				get
+				{
+					return _next != null ? _next.Value : Value;
+				}
+			}
+
+			public object Value
+			{
+				get
+				{
+					if (_target != null)
+					{
+						return _target.GetType().GetProperty(_prop).GetValue(_target);
+					}
+					return null;
+				}
 			}
 		}
 
 		readonly Node _root;
+		readonly Action<string, object> _cb;
+		readonly string _path;
 
-		public Binding(INotifyPropertyChanged target, string path, Action<object, object> cb)
+		public Binding(object target, string path, Action<string, object> cb)
 		{
-			var crumbs = path.Split('.')/*.Select(s=>s.GetHashCode())*/.ToArray();
-			var node = _root = new Node(crumbs[0]);
-			for (int i=1; i<crumbs.Length; ++i)
+			_path = path;
+			_cb = cb;
+			if (target is INotifyPropertyChanged bindableTarget)
 			{
-				node = new Node(crumbs[i], node);
+				var crumbs = new Queue<string>(path.Split('.')/*.Select(s=>s.GetHashCode())*/);
+				var node = _root = new Node(this, bindableTarget, crumbs);
 			}
+			else
+			{
+				throw new ArgumentException("target does not implement INotifyPropertyChanged");
+			}
+		}
+
+		internal void Dispatch(object oldVal, object newVal)
+		{
+			//Debug.Log("Dispatch!");
+			_cb(_path, newVal);
 		}
 
 		/*Binding()

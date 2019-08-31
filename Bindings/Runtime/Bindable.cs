@@ -22,310 +22,311 @@ public class Bind : Attribute
 
 //
 
-internal class BindingNode
-{
-	public int NameHash;
-	public BindableBase Object;
-	public BindingNode Next;
-
-	public void SetObject(object value)
-	{
-
-	}
-
-	public BindingNode Parent;
-	public BindingNode FirstChild;
-	public BindingNode PrevSibling, NextSibling;	
-
-	public void Remove()
-	{
-		if (Parent != null)
-		{
-			if (Parent.FirstChild == this)
-			{
-				Parent.FirstChild = this.NextSibling;
-			}
-
-			if (PrevSibling != null)
-			{
-				PrevSibling.NextSibling = NextSibling;
-			}
-
-			if (NextSibling != null)
-			{
-				NextSibling.PrevSibling = PrevSibling;
-			}
-
-			NextSibling = PrevSibling = null;
-
-			Parent = null;
-		}
-	}
-
-	public void AddChild(BindingNode node)
-	{
-		if (FirstChild == null)
-		{
-			FirstChild = node;
-		}
-		else
-		{
-			var t = FirstChild.NextSibling;
-			FirstChild.NextSibling = node;
-			node.PrevSibling = FirstChild;
-			node.NextSibling = t;
-		}
-
-		node.Parent = this;
-	}
-}
-
-public class Binding : IDisposable
-{
-	BindingNode _root;
-
-	internal Binding(BindingNode root)
-	{
-		_root = root;
-	}
-
-	public void Dispose()
-	{
-		throw new NotImplementedException();
-	}
-}
-
-internal class BindingData
-{
-	public struct Binding
-	{
-		public NativeArray<int> Path;
-		public BindableBase.BindingChangedDelegate Callback;
-		public int Depth;
-
-		public int FieldHash => Path[Depth];
-		public bool IsLeaf => Path.Length - 1 == Depth;
-	}
-
-	public class SlotData
-	{
-
-	}
-
-	public struct Source
-	{
-		public BindableBase Object;
-		public int Slot;
-	}
-
-	public struct Path
-	{
-		
-	}
-
-	public HashSet<Source>[] Slots;
-	public HashSet<Binding> Bindings = new HashSet<Binding>();
-	//public NativeMultiHashMap
-
-	internal BindingData(BindableBase host)
-	{
-		Slots = Enumerable.Range(0, host.FieldCount).Select(i => new HashSet<Source>()).ToArray();
-	}
-
-	~BindingData()
-	{
-		Debug.Log($"~BindingData");
-		foreach (var b in Bindings)
-		{
-			if (b.Depth == 0)
-			{
-				Debug.Log("Dispose path");
-				b.Path.Dispose();
-			}
-		}
-	}
-}
-
-
-// Binding -> linked list of names
-// maybe keep a flag if the bindable object is actually watched by some binding
-// bindings propagate up!
-public abstract class BindableBase
-{ 
-	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
-	public delegate void BindingChangedDelegate(object oldValue, object newValue);
-
-	//public event OnChangeDelegate OnBindingChange;
-	public Bindings.BindingData _binding;
-
-
-	private BindingNode[] _bindingNodes;
-
-	public BindableBase()
-	{
-		// todo: these dont compile to their procedural equivalents.... damn
-		Debug.Log($"BindableBase {this}");
-		_bindingNodes = Enumerable.Range(0, FieldCount).Select(i => new BindingNode()).ToArray();
-	}
-
-	~BindableBase()
-	{
-		Debug.Log($"Destructor called {this}");
-	}
-
-	// this is called when one of our fields changes.
-	protected void _SlotChanged(int fieldIdx, object oldValue, object newValue)
-	{
-		try
-		{
-			var node = _bindingNodes[fieldIdx];
-			if (node != null)
-			{
-
-			}
-		}
-		catch (Exception e)
-		{
-			Debug.LogError(e);
-		}
-	}
-
-	/*public int[] GetPath(string path)
-	{
-		var crumbs = path.Split('.');//.Select(f => Hash(f)).ToArray();
-		int[] indices = new int[crumbs.Count()];
-		var type = GetType();
-		for (var i=0; i<indices.Length; ++i)
-		{
-			var f = type.GetRuntimeProperty(crumbs[i]);
-			type = f.PropertyType;
-		}
-		return null;
-	}*/
-
-	public object Get(string path)
-	{
-		return null;
-	}
-
-	public IEnumerable<int> GetCrumbs(string path)
-	{
-		return path.Split('.').Select(f => Hash(f));
-	}
-
-	private void BindRec(BindingNode parent)
-	{
-
-	}
-
-	public Binding Bind(string path, BindingChangedDelegate callback)
-	{
-		var crumbs = path.Split('.').Select(f=>Hash(f)).ToArray();
-		Debug.Log($"Bind: [{string.Join(", ", crumbs)}]");
-
-		BindableBase self = this;
-		BindingNode prev = null;// _bindingNodes[GetFieldIndex(crumbs[0])];
-		BindingNode root = null;
-
-		for (int i=0; i<crumbs.Length; ++i)
-		{
-			var node = new BindingNode();
-			node.NameHash = crumbs[i];
-			if (root == null) root = node;
-
-			if (prev != null)
-			{
-				prev.Next = node;
-			}
-
-			var field = self?.GetField(crumbs[i]);
-
-			if (field != null)
-			{
-				
-			}
-
-			prev = node;
-			self = field;
-		}
-
-		return new Binding(root);
-	}
-
-	public static int Hash(string str) => str.GetHashCode();
-
-	// generated overrides
-	public virtual int FieldCount
-	{
-		get
-		{
-			var fields = GetType().GetRuntimeProperties();
-			var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
-			return bindables.Count();
-		}
-	}
-	public virtual Type GetFieldType(int idx)
-	{
-		var fields = GetType().GetRuntimeProperties();
-		var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
-		return bindables.ElementAt(idx).PropertyType;
-	}
-
-	public virtual BindableBase GetField(int hash)
-	{
-		var fields = GetType().GetRuntimeProperties();
-		var field = fields.Single(f => Hash(f.Name) == hash);
-		//var value = field.GetValue(this)
-		if (typeof(BindableBase).IsAssignableFrom(field.PropertyType))
-			return (BindableBase)field.GetValue(this);
-		else
-			Debug.Log($"Unbindable crumb: {hash}");
-		return null;
-	}
-	public virtual int GetFieldIndex(string name) { return -1; }
-	public virtual string GetFieldName(int idx) { return null; }
-	public virtual int GetFieldIndex(int hash) { return -1; }
-}
-
-//public class BindingContext
+//internal class BindingNode
 //{
-//	static Dictionary<Type, int> _typeBindings = new Dictionary<Type, int>();
+//	public int NameHash;
+//	public BindableBase Object;
+//	public BindingNode Next;
 //
-//	struct BindableMember
+//	public void SetObject(object value)
 //	{
-//		public MemberInfo Member;
 //
 //	}
 //
-//	public void Register(BindableBase obj)
+//	public BindingNode Parent;
+//	public BindingNode FirstChild;
+//	public BindingNode PrevSibling, NextSibling;	
+//
+//	public void Remove()
 //	{
-//		var type = obj.GetType();
-//		
-//		foreach (var m in type.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+//		if (Parent != null)
 //		{
-//			var bindAttrs = m.GetCustomAttributes<Bind>(true);
-//			foreach (var a in bindAttrs)
+//			if (Parent.FirstChild == this)
 //			{
-//				//Debug.Log($"Bind: {a.Uri}");
-//				var crumbs = a.Uri.Split('.');
-//				//obj.OnBindableFieldChange += Obj_OnBindableFieldChange;
-//				obj.OnBindingChange += Obj_OnBindingChange;
+//				Parent.FirstChild = this.NextSibling;
 //			}
+//
+//			if (PrevSibling != null)
+//			{
+//				PrevSibling.NextSibling = NextSibling;
+//			}
+//
+//			if (NextSibling != null)
+//			{
+//				NextSibling.PrevSibling = PrevSibling;
+//			}
+//
+//			NextSibling = PrevSibling = null;
+//
+//			Parent = null;
 //		}
 //	}
 //
-//	public void Bind(string uri, Action fn)
+//	public void AddChild(BindingNode node)
+//	{
+//		if (FirstChild == null)
+//		{
+//			FirstChild = node;
+//		}
+//		else
+//		{
+//			var t = FirstChild.NextSibling;
+//			FirstChild.NextSibling = node;
+//			node.PrevSibling = FirstChild;
+//			node.NextSibling = t;
+//		}
+//
+//		node.Parent = this;
+//	}
+//}
+//
+//public class Binding : IDisposable
+//{
+//	BindingNode _root;
+//
+//	internal Binding(BindingNode root)
+//	{
+//		_root = root;
+//	}
+//
+//	public void Dispose()
+//	{
+//		throw new NotImplementedException();
+//	}
+//}
+//
+//internal class BindingData
+//{
+//	public struct Binding
+//	{
+//		public NativeArray<int> Path;
+//		public BindableBase.BindingChangedDelegate Callback;
+//		public int Depth;
+//
+//		public int FieldHash => Path[Depth];
+//		public bool IsLeaf => Path.Length - 1 == Depth;
+//	}
+//
+//	public class SlotData
 //	{
 //
 //	}
 //
-//	private void Obj_OnBindingChange(BindableBase target, string prop, object oldValue, object objectNewValue)
+//	public struct Source
+//	{
+//		public BindableBase Object;
+//		public int Slot;
+//	}
+//
+//	public struct Path
 //	{
 //		
 //	}
 //
-//	/*private void Obj_OnBindableFieldChange(object arg1, string arg2)
+//	public HashSet<Source>[] Slots;
+//	public HashSet<Binding> Bindings = new HashSet<Binding>();
+//	//public NativeMultiHashMap
+//
+//	internal BindingData(BindableBase host)
 //	{
-//		Debug.Log($"Obj_OnBindableFieldChange({arg1}, {arg2})");
-//	}*/
+//		Slots = Enumerable.Range(0, host.FieldCount).Select(i => new HashSet<Source>()).ToArray();
+//	}
+//
+//	~BindingData()
+//	{
+//		Debug.Log($"~BindingData");
+//		foreach (var b in Bindings)
+//		{
+//			if (b.Depth == 0)
+//			{
+//				Debug.Log("Dispose path");
+//				b.Path.Dispose();
+//			}
+//		}
+//	}
 //}
+//
+//
+//// Binding -> linked list of names
+//// maybe keep a flag if the bindable object is actually watched by some binding
+//// bindings propagate up!
+//public abstract class BindableBase
+//{ 
+//	public delegate void OnChangeDelegate(BindableBase target, string prop, object oldValue, object objectNewValue);
+//	public delegate void BindingChangedDelegate(object oldValue, object newValue);
+//
+//	//public event OnChangeDelegate OnBindingChange;
+//	public Bindings.BindingData _binding;
+//
+//
+//	private BindingNode[] _bindingNodes;
+//
+//	public BindableBase()
+//	{
+//		// todo: these dont compile to their procedural equivalents.... damn
+//		Debug.Log($"BindableBase {this}");
+//		_bindingNodes = Enumerable.Range(0, FieldCount).Select(i => new BindingNode()).ToArray();
+//	}
+//
+//	~BindableBase()
+//	{
+//		Debug.Log($"Destructor called {this}");
+//	}
+//
+//	// this is called when one of our fields changes.
+//	protected void _SlotChanged(int fieldIdx, object oldValue, object newValue)
+//	{
+//		try
+//		{
+//			var node = _bindingNodes[fieldIdx];
+//			if (node != null)
+//			{
+//
+//			}
+//		}
+//		catch (Exception e)
+//		{
+//			Debug.LogError(e);
+//		}
+//	}
+//
+//	/*public int[] GetPath(string path)
+//	{
+//		var crumbs = path.Split('.');//.Select(f => Hash(f)).ToArray();
+//		int[] indices = new int[crumbs.Count()];
+//		var type = GetType();
+//		for (var i=0; i<indices.Length; ++i)
+//		{
+//			var f = type.GetRuntimeProperty(crumbs[i]);
+//			type = f.PropertyType;
+//		}
+//		return null;
+//	}*/
+//
+//	public object Get(string path)
+//	{
+//		return null;
+//	}
+//
+//	public IEnumerable<int> GetCrumbs(string path)
+//	{
+//		return path.Split('.').Select(f => Hash(f));
+//	}
+//
+//	private void BindRec(BindingNode parent)
+//	{
+//
+//	}
+//
+//	public Binding Bind(string path, BindingChangedDelegate callback)
+//	{
+//		var crumbs = path.Split('.').Select(f=>Hash(f)).ToArray();
+//		Debug.Log($"Bind: [{string.Join(", ", crumbs)}]");
+//
+//		BindableBase self = this;
+//		BindingNode prev = null;// _bindingNodes[GetFieldIndex(crumbs[0])];
+//		BindingNode root = null;
+//
+//		for (int i=0; i<crumbs.Length; ++i)
+//		{
+//			var node = new BindingNode();
+//			node.NameHash = crumbs[i];
+//			if (root == null) root = node;
+//
+//			if (prev != null)
+//			{
+//				prev.Next = node;
+//			}
+//
+//			var field = self?.GetField(crumbs[i]);
+//
+//			if (field != null)
+//			{
+//				
+//			}
+//
+//			prev = node;
+//			self = field;
+//		}
+//
+//		return new Binding(root);
+//	}
+//
+//	public static int Hash(string str) => str.GetHashCode();
+//
+//	// generated overrides
+//	public virtual int FieldCount
+//	{
+//		get
+//		{
+//			var fields = GetType().GetRuntimeProperties();
+//			var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
+//			return bindables.Count();
+//		}
+//	}
+//	public virtual Type GetFieldType(int idx)
+//	{
+//		var fields = GetType().GetRuntimeProperties();
+//		var bindables = fields.Where(f => f.CustomAttributes.Any(c => c.AttributeType == typeof(BindableAttribute)));
+//		return bindables.ElementAt(idx).PropertyType;
+//	}
+//
+//	public virtual BindableBase GetField(int hash)
+//	{
+//		var fields = GetType().GetRuntimeProperties();
+//		var field = fields.Single(f => Hash(f.Name) == hash);
+//		//var value = field.GetValue(this)
+//		if (typeof(BindableBase).IsAssignableFrom(field.PropertyType))
+//			return (BindableBase)field.GetValue(this);
+//		else
+//			Debug.Log($"Unbindable crumb: {hash}");
+//		return null;
+//	}
+//	public virtual int GetFieldIndex(string name) { return -1; }
+//	public virtual string GetFieldName(int idx) { return null; }
+//	public virtual int GetFieldIndex(int hash) { return -1; }
+//}
+//
+////public class BindingContext
+////{
+////	static Dictionary<Type, int> _typeBindings = new Dictionary<Type, int>();
+////
+////	struct BindableMember
+////	{
+////		public MemberInfo Member;
+////
+////	}
+////
+////	public void Register(BindableBase obj)
+////	{
+////		var type = obj.GetType();
+////		
+////		foreach (var m in type.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+////		{
+////			var bindAttrs = m.GetCustomAttributes<Bind>(true);
+////			foreach (var a in bindAttrs)
+////			{
+////				//Debug.Log($"Bind: {a.Uri}");
+////				var crumbs = a.Uri.Split('.');
+////				//obj.OnBindableFieldChange += Obj_OnBindableFieldChange;
+////				obj.OnBindingChange += Obj_OnBindingChange;
+////			}
+////		}
+////	}
+////
+////	public void Bind(string uri, Action fn)
+////	{
+////
+////	}
+////
+////	private void Obj_OnBindingChange(BindableBase target, string prop, object oldValue, object objectNewValue)
+////	{
+////		
+////	}
+////
+////	/*private void Obj_OnBindableFieldChange(object arg1, string arg2)
+////	{
+////		Debug.Log($"Obj_OnBindableFieldChange({arg1}, {arg2})");
+////	}*/
+////}
+//

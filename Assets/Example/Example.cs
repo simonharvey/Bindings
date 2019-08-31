@@ -1,9 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using UnityEngine;
 
 [assembly: Bindable]
 
-public class Foo : BindableBase
+public class BaseBindable : INotifyPropertyChanged
+{
+	public event PropertyChangedEventHandler PropertyChanged;
+}
+
+public class Foo : INotifyPropertyChanged
 {
 	[Bindable]
 	public int IntValue { get; set; }
@@ -11,7 +18,20 @@ public class Foo : BindableBase
 	[Bindable]
 	public Bar BarValue { get; set; }
 
-	public int Unbindable { get; set; }
+	private int _unbindable;
+	public int Unbindable
+	{
+		get => _unbindable;
+		set
+		{
+			if (EqualityComparer<int>.Default.Equals(_unbindable, value))
+				return;
+			_unbindable = value;
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Unbindable"));
+		}
+	}
+
+	public event PropertyChangedEventHandler PropertyChanged;
 
 	/*[Bind("IntValue")]
 	void OnIntValueChange(int oldValue, int newValue)
@@ -26,45 +46,31 @@ public class Foo : BindableBase
 	}*/
 }
 
-public class Bar : BindableBase
+public class Bar : INotifyPropertyChanged
 {
 	[Bindable]
 	public float FloatValue { get; set; }
 
+	public event PropertyChangedEventHandler PropertyChanged;
+
 	public override string ToString()
 	{
-		return "[BAR]";
+		return $"[BAR floatValue:{FloatValue}]";
 	}
 }
 
-public class Baz : BindableBase
+//public class Garbage : BaseBindable
+//{
+//	void Doit()
+//	{
+//		PropertyChanged(null, null);
+//	}
+//}
+
+public class Baz : INotifyPropertyChanged
 {
 	[Bindable]
 	public double DoubleValue { get; set; }
-}
 
-public class Example
-{
-	//[RuntimeInitializeOnLoadMethod]
-	//public static void Garbage()
-	//{
-	//	//var ctx = new BindingContext();
-	//	var foo = new Foo();
-	//	//ctx.Register(foo);
-	//	//foo.OnBindableFieldChange += Foo_OnBindableFieldChange;
-	//
-	//	/*((BindableBase)foo).Bind("BarValue.FloatValue", (v) =>
-	//	{
-	//		Debug.Log($"Changed: {v}");
-	//	});*/
-	//
-	//	foo.IntValue = 666;
-	//	foo.BarValue = new Bar();
-	//	foo.BarValue.FloatValue = 12345;
-	//}
-
-	private static void Foo_OnBindableFieldChange(object arg1, string arg2)
-	{
-		//Debug.Log($"Changed: {arg1} {arg2}"); 
-	}
+	public event PropertyChangedEventHandler PropertyChanged;
 }
