@@ -141,6 +141,8 @@ public class Patching
 				var propertyChangedEventArgsCtor = assDef.MainModule.ImportReference(propertyChangedEventArgs.Resolve().Methods.First(m => m.Name == ".ctor"));
 				var propertyChangedEventHandler = assDef.MainModule.ImportReference(typeof(PropertyChangedEventHandler));
 				var propertyChangedEventHandlerInvoke = assDef.MainModule.ImportReference(propertyChangedEventHandler.Resolve().Methods.First(m => m.Name == "Invoke"));
+				var bindable = assDef.MainModule.ImportReference(typeof(Bindable));
+				var bindableInvoke = assDef.MainModule.ImportReference(bindable.Resolve().Methods.First(m => m.Name.Equals("NotifyChange")));
 
 				foreach (var property in bindableFields)
 				{
@@ -149,7 +151,8 @@ public class Patching
 					var setter = property.SetMethod;
 					var backingField = property.DeclaringType.Fields.First(f => f.Name == "<" + property.Name + ">k__BackingField");
 
-					FieldDefinition propChangedEventHandlerField;
+					FieldDefinition propChangedEventHandlerField = null;
+					MethodDefinition methodDef = null;
 
 					try
 					{
@@ -158,13 +161,21 @@ public class Patching
 					catch (InvalidOperationException e)
 					{
 						Debug.Log($"INotifyPropertyChanged but not prop: {property.FullName}");
-						var bindableType = typeDef.BaseType.Resolve();
+						/*var bindableType = typeDef.BaseType.Resolve();
 						while (bindableType != null)
 						{
-							Debug.Log($"{bindableType.FullName} {bindableType.FullName.Equals(typeof(Bindable).Name)}");
+							if (bindableType.FullName.Equals(typeof(Bindable).Name)) // puke
+							{
+								methodDef = bindableType.Methods.First(m => m.Name.Equals("NotifyChange"));
+								methodDef = methodDef.Module.ImportReference(methodDef).Resolve();
+								break;
+							}
+							//Debug.Log($"{bindableType.FullName} {bindableType.FullName.Equals(typeof(Bindable).Name)}");
 							bindableType = bindableType.BaseType?.Resolve();
 						}
-						continue;
+
+						Debug.Log(methodDef);*/
+						//continue;
 					}
 
 					MethodReference getDefault;
@@ -216,18 +227,28 @@ public class Patching
 					ilGenerator.InsertBefore(ret, ldarg_0_18);
 					ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldarg_1));
 					ilGenerator.InsertBefore(ret, ilGenerator.Create(Stfld, backingField));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldarg_0));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldfld, propChangedEventHandlerField));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Dup));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Brtrue_S, ldarg_0_2b));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Pop));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Br_S, ret));
-					ilGenerator.InsertBefore(ret, ldarg_0_2b);
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldstr, property.Name));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Newobj, propertyChangedEventArgsCtor));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Callvirt, propertyChangedEventHandlerInvoke));
-					ilGenerator.InsertBefore(ret, ilGenerator.Create(Nop));
 
+					if (propChangedEventHandlerField != null)
+					{
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldarg_0));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldfld, propChangedEventHandlerField));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Dup));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Brtrue_S, ldarg_0_2b));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Pop));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Br_S, ret));
+						ilGenerator.InsertBefore(ret, ldarg_0_2b);
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldstr, property.Name));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Newobj, propertyChangedEventArgsCtor));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Callvirt, propertyChangedEventHandlerInvoke));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Nop));
+					}
+					else
+					{
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldarg_0));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Ldstr, property.Name));
+						ilGenerator.InsertBefore(ret, ilGenerator.Create(Call, bindableInvoke));
+					}
+					
 					var attributesToRemove = new List<CustomAttribute>();
 
 					foreach (var attribute in property.CustomAttributes.Where(c => c.AttributeType.FullName == typeof(BindableAttribute).FullName))

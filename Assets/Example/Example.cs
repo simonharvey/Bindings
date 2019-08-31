@@ -29,12 +29,10 @@ public class Foo : INotifyPropertyChanged
 	public event PropertyChangedEventHandler PropertyChanged;
 }
 
-public class Bar : INotifyPropertyChanged
-{
+public class Bar : Bindable
+{ 
 	[Bindable]
 	public float FloatValue { get; set; }
-
-	public event PropertyChangedEventHandler PropertyChanged;
 
 	public override string ToString()
 	{

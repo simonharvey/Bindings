@@ -25,8 +25,8 @@ public class Bindable : INotifyPropertyChanged
 {
 	public event PropertyChangedEventHandler PropertyChanged;
 
-	internal void NotifyChange()
+	protected void NotifyChange(string name)
 	{
-		PropertyChanged?.Invoke(null, null);
+		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 	}
 }
