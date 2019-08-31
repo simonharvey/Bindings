@@ -41,16 +41,20 @@ public class Patching
 
 	private static void CompilationPipeline_assemblyCompilationStarted(string assPath)
 	{
-		//Debug.Log($"CompilationPipeline_assemblyCompilationStarted {assPath}");
+		Debug.Log($"CompilationPipeline_assemblyCompilationStarted {assPath}");
 	}
 
 	private static void CompilationPipeline_assemblyCompilationFinished(string assPath, CompilerMessage[] arg2)
 	{
 		// if an assembly has finished compiling and is bindable, need to process
 
-		//Debug.Log($"CompilationPipeline_assemblyCompilationFinished {assPath}");
+		Debug.Log($"CompilationPipeline_assemblyCompilationFinished {assPath}");
 
-		using (var assDef = AssemblyDefinition.ReadAssembly(assPath))
+		DefaultAssemblyResolver resolver = new DefaultAssemblyResolver();
+		resolver.AddSearchDirectory(Directory.GetParent(assPath).FullName);
+		Debug.Log(Directory.GetParent(assPath).FullName);
+
+		using (var assDef = AssemblyDefinition.ReadAssembly(assPath, new ReaderParameters { AssemblyResolver = resolver }))
 		{
 			var count = assDef.CustomAttributes.Count;
 
@@ -131,7 +135,7 @@ public class Patching
 				Debug.LogError($"{typeDef} cannot use [Bindable] as it doesn't implement INotifyPropertyChanged");
 				continue;
 			}
-
+			else
 			{
 				var propertyChangedEventArgs = assDef.MainModule.ImportReference(typeof(PropertyChangedEventArgs));
 				var propertyChangedEventArgsCtor = assDef.MainModule.ImportReference(propertyChangedEventArgs.Resolve().Methods.First(m => m.Name == ".ctor"));
@@ -140,11 +144,28 @@ public class Patching
 
 				foreach (var property in bindableFields)
 				{
-					Debug.Log("Injecting in " + property.FullName);
+					//Debug.Log("Injecting in " + property.FullName);
 
-					var backingField = property.DeclaringType.Fields.First(f => f.Name == "<" + property.Name + ">k__BackingField");
-					var propChangedEventHandlerField = property.DeclaringType.Fields.First(f => f.Name == "PropertyChanged");
 					var setter = property.SetMethod;
+					var backingField = property.DeclaringType.Fields.First(f => f.Name == "<" + property.Name + ">k__BackingField");
+
+					FieldDefinition propChangedEventHandlerField;
+
+					try
+					{
+						propChangedEventHandlerField = typeDef.Fields.First(f => f.Name == "PropertyChanged");
+					}
+					catch (InvalidOperationException e)
+					{
+						Debug.Log($"INotifyPropertyChanged but not prop: {property.FullName}");
+						var bindableType = typeDef.BaseType.Resolve();
+						while (bindableType != null)
+						{
+							Debug.Log($"{bindableType.FullName} {bindableType.FullName.Equals(typeof(Bindable).Name)}");
+							bindableType = bindableType.BaseType?.Resolve();
+						}
+						continue;
+					}
 
 					MethodReference getDefault;
 					MethodReference equals;

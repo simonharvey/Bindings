@@ -15,8 +15,7 @@ namespace Bindings
 			Binding _owner;
 			string _prop;
 			INotifyPropertyChanged _target;
-			//NativeSlice<int> _crumbs;
-
+			
 			Node _next;
 
 			public INotifyPropertyChanged Target
@@ -24,7 +23,6 @@ namespace Bindings
 				get => _target;
 				set
 				{
-					//Debug.Log($"Set Host {this}: {_target} -> {value}");
 					if (value != _target)
 					{
 						if (_target != null)
@@ -34,7 +32,6 @@ namespace Bindings
 
 						if (value != null)
 						{
-							//Debug.Log($"Bind Host: {value}");
 							value.PropertyChanged += OnPropertyChanged;
 						}
 
@@ -44,12 +41,10 @@ namespace Bindings
 						if (_next == null)
 						{
 							// leaf! lets dispatch
-							//Debug.Log("LEAF!");
 							_owner.Dispatch(oldValue, Value);
 						}
 						else
 						{
-							//Debug.Log($"Propagate {Value}");
 							_next.Target = Value as INotifyPropertyChanged;
 						}
 
@@ -59,7 +54,6 @@ namespace Bindings
 
 			private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 			{
-				//Debug.Log($"Changed {_target} -> {_prop} == {e.PropertyName}");
 				if (e.PropertyName.Equals(_prop))
 				{
 					if (_next != null)
@@ -84,21 +78,6 @@ namespace Bindings
 				}
 				Target = target;
 			}
-
-			/*public Node(INotifyPropertyChanged value, string prop)
-			{
-				Host = value;
-				_prop = prop;
-			}*/
-
-			/*public Node(string prop, Node parent = null)
-			{
-				_prop = prop;
-				if (parent != null)
-				{
-					parent._next = this;
-				}
-			}*/
 
 			public object LeafValue
 			{
@@ -142,26 +121,12 @@ namespace Bindings
 
 		internal void Dispatch(object oldVal, object newVal)
 		{
-			//Debug.Log("Dispatch!");
 			_cb(_path, newVal);
 		}
 
-		/*Binding()
-		{
-
-		}*/
-
 		public void Dispose()
 		{
-			//throw new NotImplementedException();
-		}
-	}
-
-	namespace Example
-	{
-		public class BindableBase : INotifyPropertyChanged
-		{
-			public event PropertyChangedEventHandler PropertyChanged;
+			
 		}
 	}
 }

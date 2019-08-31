@@ -5,11 +5,6 @@ using UnityEngine;
 
 [assembly: Bindable]
 
-public class BaseBindable : INotifyPropertyChanged
-{
-	public event PropertyChangedEventHandler PropertyChanged;
-}
-
 public class Foo : INotifyPropertyChanged
 {
 	[Bindable]
@@ -32,18 +27,6 @@ public class Foo : INotifyPropertyChanged
 	}
 
 	public event PropertyChangedEventHandler PropertyChanged;
-
-	/*[Bind("IntValue")]
-	void OnIntValueChange(int oldValue, int newValue)
-	{
-		Debug.Log($"OnIntValueChange({oldValue}, {newValue})");
-	}
-
-	[Bind("BarValue.FloatValue")]
-	public void OnBarPropChanged()
-	{
-		Debug.Log($"OnBarPropChanged()");
-	}*/
 }
 
 public class Bar : INotifyPropertyChanged
@@ -59,18 +42,8 @@ public class Bar : INotifyPropertyChanged
 	}
 }
 
-//public class Garbage : BaseBindable
-//{
-//	void Doit()
-//	{
-//		PropertyChanged(null, null);
-//	}
-//}
-
-public class Baz : INotifyPropertyChanged
+public class Baz : Bindable
 {
 	[Bindable]
 	public double DoubleValue { get; set; }
-
-	public event PropertyChangedEventHandler PropertyChanged;
 }
